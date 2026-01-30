@@ -1,0 +1,20 @@
+PERSONA: James - Pre-med who's reconsidering, Midwest focused
+============================================================
+
+PROFILE:
+- Name: James Wilson
+- Age: 20
+- University: University of Michigan
+- Major: Biology (Pre-med track)
+- GPA: 3.2
+- Year: Junior
+
+SIMULATED RESPONSE:
+-------------------
+So I've been on the pre-med track, but I'm starting to have second thoughts about becoming a doctor. I like biology and I genuinely want to help people, but the thought of 4 more years of med school plus residency is overwhelming. And honestly, organic chemistry nearly killed my GPA.
+
+The classes I've actually enjoyed most are my anatomy and physiology labs, and surprisingly, my health policy elective. I like understanding how the body works, and I'm good at working with patients - I volunteer at the university hospital and the patient interaction part comes naturally to me.
+
+I struggle with the super competitive pre-med culture, and I'm not great at memorizing massive amounts of information for exams. I do better with hands-on learning.
+
+I want to stay in the Midwest - Michigan, Ohio, Illinois, Minnesota area. My girlfriend is in grad school here and we're planning to stay in the region. Are there healthcare careers that don't require medical school but still let me work with patients and make decent money? I don't want to feel like I wasted three years of pre-med classes.

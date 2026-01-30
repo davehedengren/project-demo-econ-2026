@@ -1,0 +1,20 @@
+PERSONA: Marcus - STEM-focused, wants to stay in Texas
+======================================================
+
+PROFILE:
+- Name: Marcus Chen
+- Age: 21
+- University: Texas A&M
+- Major: Mechanical Engineering
+- GPA: 3.4
+- Year: Senior
+
+SIMULATED RESPONSE:
+-------------------
+Hey! I'm a senior mechanical engineering student at Texas A&M. I've really enjoyed my thermodynamics and fluid mechanics classes - anything where I can solve real problems with math and physics. I also took a robotics elective that was awesome.
+
+My strengths are definitely problem-solving and working with my hands. I did an internship at a manufacturing plant last summer and loved being on the floor seeing how things actually get made. I'm pretty good with CAD software too.
+
+My weaknesses? I'm not great at writing reports - technical writing is a struggle. And I get impatient in meetings that drag on.
+
+I definitely want to stay in Texas - my family is here in Houston, and I know there's a lot of energy and aerospace industry around. Maybe Austin or Dallas would work too, but I'd prefer to stay close to home. What kind of jobs should I be looking at?

@@ -1,0 +1,20 @@
+PERSONA: Aisha - Business/data blend, targeting Northeast finance hubs
+=====================================================================
+
+PROFILE:
+- Name: Aisha Johnson
+- Age: 21
+- University: Howard University
+- Major: Finance with minor in Statistics
+- GPA: 3.8
+- Year: Senior
+
+SIMULATED RESPONSE:
+-------------------
+I'm a finance major with a stats minor, graduating this spring. I've really enjoyed my econometrics classes and a data visualization course I took. I like finding patterns in numbers and turning them into insights that actually mean something. My corporate finance classes were good too, but I think I'm more interested in the analytical side than traditional banking.
+
+My strengths are quantitative analysis and being detail-oriented. I'm comfortable with Excel, I've learned some Python and SQL, and I did a summer internship at a consulting firm where I built financial models. I'm also pretty good at explaining complex data to people who aren't as numbers-focused.
+
+Weaknesses - I can get too deep in the weeds sometimes and lose sight of the big picture. I'm also a bit introverted, so networking events drain me even though I know they're important.
+
+I'm targeting New York or Boston for jobs - I want to be in a major financial hub with lots of opportunity for growth. Maybe DC could work too since I'm already on the East Coast. I'm curious about careers that combine finance and data analytics. What pays well and has good growth potential?

@@ -1,0 +1,133 @@
+{# Tool definitions for the career counselor chatbot #}
+[
+    {
+        "name": "search_occupations",
+        "description": "Search for occupations by keyword. Use this when a student mentions specific interests, subjects, careers, or job types they're curious about. Returns matching occupations with salary, education, and outlook info.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search keywords (e.g., 'software', 'nurse', 'writing', 'animals')"
+                }
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "filter_occupations",
+        "description": "Filter occupations by criteria like education level, salary range, job outlook, or career category. Use this when a student has specific requirements or constraints.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Career categories to include (e.g., ['healthcare', 'computer-and-information-technology']). Available: {{ categories | join(', ') }}"
+                },
+                "min_salary": {
+                    "type": "integer",
+                    "description": "Minimum annual salary in dollars"
+                },
+                "max_salary": {
+                    "type": "integer",
+                    "description": "Maximum annual salary in dollars"
+                },
+                "education_levels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Education levels to include (e.g., ['Bachelor\\'s degree', 'High school diploma']). Available: {{ education_levels | join(', ') }}"
+                },
+                "outlook": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Job outlook categories (e.g., ['Much faster than average', 'Faster than average']). Available: {{ outlook_categories | join(', ') }}"
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "get_occupation_details",
+        "description": "Get comprehensive details about a specific occupation including what they do, how to become one, work environment, pay, and job outlook. Use the occupation code from search results.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code (e.g., 'B047' for Accountants)"
+                }
+            },
+            "required": ["code"]
+        }
+    },
+    {
+        "name": "get_similar_occupations",
+        "description": "Get occupations similar to a given one. Use this to help students explore related careers they might not have considered.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code to find similar occupations for"
+                }
+            },
+            "required": ["code"]
+        }
+    },
+    {
+        "name": "get_state_data",
+        "description": "Get state-specific employment and wage data for an occupation. Use this when a student mentions a specific state they want to work in. Returns actual employment counts, median salary for that state, and how it compares to national averages.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code to look up"
+                },
+                "state": {
+                    "type": "string",
+                    "description": "The state name (e.g., 'Idaho', 'California', 'Texas')"
+                }
+            },
+            "required": ["code", "state"]
+        }
+    },
+    {
+        "name": "compare_states",
+        "description": "Compare an occupation across multiple states. Use this to help students understand regional differences in employment and wages.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code to compare"
+                },
+                "states": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of state names to compare (e.g., ['Idaho', 'Utah', 'Washington'])"
+                }
+            },
+            "required": ["code", "states"]
+        }
+    },
+    {
+        "name": "get_top_states",
+        "description": "Get the states with highest employment for an occupation. Use this to show students where jobs are most plentiful.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code to look up"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of top states to return (default 10)"
+                }
+            },
+            "required": ["code"]
+        }
+    }
+]

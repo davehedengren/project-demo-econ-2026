@@ -1,0 +1,16 @@
+run = "python -m src.main --port 8080"
+entrypoint = "src/main.py"
+
+[env]
+PYTHONUNBUFFERED = "1"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["python", "-m", "src.main", "--port", "8080"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 8080
+externalPort = 80

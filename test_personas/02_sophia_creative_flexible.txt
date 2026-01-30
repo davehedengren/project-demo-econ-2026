@@ -1,0 +1,20 @@
+PERSONA: Sophia - Creative arts background, location flexible
+============================================================
+
+PROFILE:
+- Name: Sophia Martinez
+- Age: 22
+- University: UCLA
+- Major: Communications with minor in Graphic Design
+- GPA: 3.7
+- Year: Recent graduate
+
+SIMULATED RESPONSE:
+-------------------
+Hi there! I just graduated from UCLA with a communications degree and a minor in graphic design. I absolutely loved my visual storytelling and digital media classes. I spent a lot of time working on the campus magazine doing layout and some photography.
+
+I'm really creative and I'm told I have a good eye for design. I pick up new software quickly - I taught myself After Effects and Figma. I'm also a strong writer when it comes to creative stuff, and I'm pretty good at presenting ideas to people.
+
+Honestly, my weakness is probably the business/numbers side of things. Budgets and spreadsheets make my eyes glaze over. I also tend to be a bit of a perfectionist which can slow me down.
+
+Location-wise, I'm pretty flexible! I'd love to be somewhere with a creative scene - LA, New York, Austin, Portland, Seattle... I'm open to remote work too. I just don't want to end up in a cubicle doing something boring. What careers combine creativity with good job prospects?

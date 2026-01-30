@@ -1,0 +1,224 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codebg}{RGB}{245, 245, 245}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    framerule=0pt,
+    breaklines=true,
+    columns=fullflexible,
+}
+
+\title{Getting Started with Claude Code}
+\subtitle{Installation Guide for macOS, Linux, and Windows}
+\author{Setup Instructions}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{Overview}
+    \tableofcontents
+\end{frame}
+
+\section{Prerequisites}
+
+\begin{frame}[fragile]{Prerequisites}
+    Before installing Claude Code, ensure you have:
+    \vspace{0.5cm}
+    \begin{itemize}
+        \item \textbf{Node.js 18+} installed on your system
+        \item An \textbf{Anthropic API key} (from console.anthropic.com)
+        \item A \textbf{terminal} application
+        \item (Optional) A code editor like VS Code or Cursor
+    \end{itemize}
+    \vspace{0.5cm}
+    \textbf{Check Node.js version:}
+\begin{lstlisting}
+node --version
+\end{lstlisting}
+\end{frame}
+
+\section{Install an IDE}
+
+\begin{frame}[fragile]{Option A: Install VS Code}
+    \textbf{Visual Studio Code} -- Free, open-source, widely used
+    \vspace{0.3cm}
+
+    \textbf{macOS:}
+\begin{lstlisting}
+brew install --cask visual-studio-code
+\end{lstlisting}
+
+    \textbf{Windows:}
+    \begin{itemize}
+        \item Download from \texttt{https://code.visualstudio.com}
+        \item Run the installer
+    \end{itemize}
+
+    \textbf{Linux (Ubuntu/Debian):}
+\begin{lstlisting}
+sudo snap install code --classic
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Option B: Install Cursor}
+    \textbf{Cursor} -- AI-native code editor (VS Code fork)
+    \vspace{0.3cm}
+
+    \textbf{macOS:}
+\begin{lstlisting}
+brew install --cask cursor
+\end{lstlisting}
+
+    \textbf{Windows / Linux:}
+    \begin{itemize}
+        \item Download from \texttt{https://cursor.sh}
+        \item Run the installer
+    \end{itemize}
+
+    \vspace{0.3cm}
+    \textit{Note: Cursor has built-in AI features but also works great with Claude Code in the terminal.}
+\end{frame}
+
+\section{Install Claude Code}
+
+\begin{frame}[fragile]{Step 1: Install Claude Code via npm}
+    Open your terminal and run:
+    \vspace{0.3cm}
+
+\begin{lstlisting}
+npm install -g @anthropic-ai/claude-code
+\end{lstlisting}
+
+    \vspace{0.5cm}
+    This installs Claude Code globally on your system.
+
+    \vspace{0.5cm}
+    \textbf{Verify installation:}
+\begin{lstlisting}
+claude --version
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Step 2: Authenticate with Anthropic}
+    Run Claude Code for the first time:
+    \vspace{0.3cm}
+
+\begin{lstlisting}
+claude
+\end{lstlisting}
+
+    \vspace{0.3cm}
+    You will be prompted to authenticate. Choose one option:
+
+    \vspace{0.3cm}
+    \begin{enumerate}
+        \item \textbf{Browser login} -- Opens Anthropic console to authorize
+        \item \textbf{API key} -- Paste your key from console.anthropic.com
+    \end{enumerate}
+
+    \vspace{0.3cm}
+    \textit{Your credentials are stored securely in your system keychain.}
+\end{frame}
+
+\begin{frame}[fragile]{Step 3: Start Using Claude Code}
+    Navigate to your project directory:
+    \vspace{0.3cm}
+
+\begin{lstlisting}
+cd ~/your-project
+claude
+\end{lstlisting}
+
+    \vspace{0.3cm}
+    \textbf{Useful commands inside Claude Code:}
+    \begin{itemize}
+        \item \texttt{/help} -- Show available commands
+        \item \texttt{/clear} -- Clear conversation history
+        \item \texttt{/cost} -- Show token usage and cost
+        \item \texttt{Ctrl+C} -- Cancel current operation
+        \item \texttt{Ctrl+D} or \texttt{/exit} -- Exit Claude Code
+    \end{itemize}
+\end{frame}
+
+\section{IDE Integration}
+
+\begin{frame}{VS Code / Cursor Integration}
+    \textbf{Option 1: Use the integrated terminal}
+    \begin{itemize}
+        \item Open terminal in VS Code: \texttt{Ctrl+`} (backtick)
+        \item Run \texttt{claude} in your project folder
+        \item Claude can read/edit files in your workspace
+    \end{itemize}
+
+    \vspace{0.5cm}
+    \textbf{Option 2: Install the Claude Code extension}
+    \begin{itemize}
+        \item Open Extensions (\texttt{Cmd+Shift+X} or \texttt{Ctrl+Shift+X})
+        \item Search for "Claude Code"
+        \item Click Install
+    \end{itemize}
+\end{frame}
+
+\section{Tips}
+
+\begin{frame}[fragile]{Pro Tips}
+    \begin{itemize}
+        \item \textbf{Create a CLAUDE.md file} in your project root with context about your codebase -- Claude reads it automatically
+
+        \vspace{0.3cm}
+        \item \textbf{Use .env files} for API keys -- Claude Code respects \texttt{.gitignore}
+
+        \vspace{0.3cm}
+        \item \textbf{Start specific tasks} directly:
+\begin{lstlisting}
+claude "fix the bug in login.py"
+\end{lstlisting}
+
+        \vspace{0.3cm}
+        \item \textbf{Resume sessions} -- Claude remembers context within a session
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Quick Reference}
+    \begin{center}
+    \begin{tabular}{|l|l|}
+        \hline
+        \textbf{Action} & \textbf{Command} \\
+        \hline
+        Install Claude Code & \texttt{npm install -g @anthropic-ai/claude-code} \\
+        Start Claude & \texttt{claude} \\
+        Start with prompt & \texttt{claude "your task"} \\
+        Check version & \texttt{claude --version} \\
+        Get help & \texttt{/help} (inside Claude) \\
+        Clear history & \texttt{/clear} \\
+        Exit & \texttt{Ctrl+D} or \texttt{/exit} \\
+        \hline
+    \end{tabular}
+    \end{center}
+
+    \vspace{0.5cm}
+    \textbf{Documentation:} \texttt{https://docs.anthropic.com/claude-code}
+\end{frame}
+
+\begin{frame}{Get Started!}
+    \begin{center}
+    {\Huge Happy Coding!}
+
+    \vspace{1cm}
+    {\large Questions? Check \texttt{/help} or visit docs.anthropic.com}
+    \end{center}
+\end{frame}
+
+\end{document}
