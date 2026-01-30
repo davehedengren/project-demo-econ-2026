@@ -1,11 +1,12 @@
 run = "python -m src.main --port 8080"
 entrypoint = "src/main.py"
+modules = ["python-3.12"]
 
 [env]
 PYTHONUNBUFFERED = "1"
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-25_05"
 
 [deployment]
 run = ["python", "-m", "src.main", "--port", "8080"]
