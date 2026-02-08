@@ -95,7 +95,23 @@ HTML_TEMPLATE = """
             font-size: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 16px;
+            padding: 16px 16px 40px 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .site-footer {
+            text-align: center;
+            padding: 10px 0 2px 0;
+            margin-top: auto;
+            font-size: 13px;
+        }
+        .site-footer a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+        }
+        .site-footer a:hover {
+            color: #fff;
+            text-decoration: underline;
         }
         .app-container {
             display: flex;
@@ -845,6 +861,9 @@ HTML_TEMPLATE = """
         userInput.focus();
         loadOccupations();
     </script>
+    <footer class="site-footer">
+        <a href="https://github.com/davehedengren/project-demo-econ-2026" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+    </footer>
 </body>
 </html>
 """
