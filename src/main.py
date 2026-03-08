@@ -23,10 +23,8 @@ load_dotenv()
 
 # Verify API key
 if not os.environ.get("ANTHROPIC_API_KEY"):
-    logger.error("ANTHROPIC_API_KEY not found in environment.")
-    print("Error: ANTHROPIC_API_KEY not found in environment.")
-    print("Please create a .env file with your API key.")
-    sys.exit(1)
+    print("Warning: ANTHROPIC_API_KEY not found in environment.")
+    print("Chat functionality will not work without it.")
 
 from .chatbot import ChatbotError, create_chatbot
 from .occupation_store import OccupationStore
@@ -883,6 +881,11 @@ def get_chatbot():
 @app.route('/')
 def index():
     return render_template_string(HTML_TEMPLATE)
+
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'}), 200
 
 
 @app.route('/api/occupations')
