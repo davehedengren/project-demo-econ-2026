@@ -916,20 +916,14 @@ def chat():
         return jsonify({'error': 'Invalid request body.'}), 400
     message = data.get('message', '')
     if not message:
-        return jsonify({'error': 'No message provided.'}), 400
-    if len(message) > 10000:
-        return jsonify({'error': 'Message too long. Please keep it under 10,000 characters.'}), 400
-
+        return jsonify({'error': 'No message provided'}), 400
     try:
         chatbot = get_chatbot()
         response = chatbot.chat(message)
         return jsonify({'response': response})
-    except ChatbotError as e:
-        logger.warning("Chatbot error: %s", e)
-        return jsonify({'error': str(e)}), 502
     except Exception as e:
-        logger.error("Unexpected error in /chat: %s", e, exc_info=True)
-        return jsonify({'error': 'Something went wrong. Please try again.'}), 500
+        print(f"Chat error: {type(e).__name__}: {e}")
+        return jsonify({'error': 'Something went wrong'}), 500
 
 
 @app.route('/reset', methods=['POST'])
