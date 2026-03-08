@@ -8,9 +8,11 @@ Interactive career counselor chatbot that helps students decide on career paths 
 
 ## Architecture
 
-- **LLM**: Anthropic Claude Opus 4.5 API (`claude-opus-4-5-20251101`)
-- **Data source**: BLS Occupational Outlook Handbook XML
-- **Tool use**: Claude has skills/tools to query the XML database for accurate, grounded responses
+- **LLM**: Anthropic Claude Opus 4.6 API (`claude-opus-4-6`)
+- **Data storage**: Single SQLite database (`data/career_data.db`) built from BLS + O*NET raw files
+- **Data sources**: BLS Occupational Outlook Handbook, OEWS state wages, O*NET skills/interests
+- **Tool use**: Claude has 11 tools to query the database for accurate, grounded responses
+- **Build step**: Run `python build_db.py` to rebuild the database from raw data files
 - **Deployment**: Replit
 
 ## Data
@@ -33,13 +35,23 @@ Interactive career counselor chatbot that helps students decide on career paths 
 - Location quotient (job concentration vs national)
 - See `data/state_data_dictionary.txt` for field definitions
 
+### O*NET Skills & Interests Data
+`data/onet/` - O*NET 30.2 Database (downloaded, not checked into git):
+- `Skills.txt` - 35 skills rated by importance for 894 occupations
+- `Knowledge.txt` - 33 knowledge areas rated by importance
+- `Interests.txt` - Holland Code (RIASEC) interest profiles
+- `Occupation_Data.txt` - 1,016 O*NET occupation titles/descriptions
+- `Abilities.txt` - Cognitive and physical abilities (available for future use)
+- `Education_Training_Experience.txt` - Education requirements (available for future use)
+- Mapped to BLS occupations via SOC codes
+
 ## Code Style
 
 - **LLM Prompts**: Use Jinja2 templates (`.j2` files) in `src/templates/` for all LLM system prompts and tool definitions. This makes prompts easier to edit and version control separately from code.
 
 ## Environment
 
-- `ANTHROPIC_API_KEY` - API key for Claude Opus 4.5 (stored in `.env`)
+- `ANTHROPIC_API_KEY` - API key for Claude Opus 4.6 (stored in `.env`)
 
 ## Permissions
 

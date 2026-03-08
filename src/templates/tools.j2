@@ -129,5 +129,82 @@
             },
             "required": ["code"]
         }
+    },
+    {
+        "name": "get_occupation_skills",
+        "description": "Get the key skills and knowledge areas required for an occupation, ranked by importance. Use this when a student asks what skills they need for a career, or to help them understand if their strengths align with an occupation. Data from O*NET.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code to look up skills for"
+                }
+            },
+            "required": ["code"]
+        }
+    },
+    {
+        "name": "get_occupation_interests",
+        "description": "Get the Holland Code interest profile for an occupation. Shows which personality/interest types align best with this career (Realistic, Investigative, Artistic, Social, Enterprising, Conventional). Use this to help students see if a career matches their personality.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code to look up interests for"
+                }
+            },
+            "required": ["code"]
+        }
+    },
+    {
+        "name": "find_careers_by_skills",
+        "description": "Find careers that value specific skills. Use this when a student says they're good at or enjoy certain skills (e.g., 'I'm good at math and problem solving'). Available skills: {{ skill_names | join(', ') }}",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "skills": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Skills to match against (e.g., ['Mathematics', 'Critical Thinking', 'Programming'])"
+                }
+            },
+            "required": ["skills"]
+        }
+    },
+    {
+        "name": "find_careers_by_interests",
+        "description": "Find careers matching a student's Holland Code interest profile. Use this when you understand a student's personality type or interests. Rate each of the 6 types from 1 (low) to 7 (high): Realistic (hands-on), Investigative (research/analysis), Artistic (creative), Social (helping people), Enterprising (leading/persuading), Conventional (organizing/data).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "realistic": {
+                    "type": "number",
+                    "description": "Interest in hands-on, practical work (1-7)"
+                },
+                "investigative": {
+                    "type": "number",
+                    "description": "Interest in research and problem-solving (1-7)"
+                },
+                "artistic": {
+                    "type": "number",
+                    "description": "Interest in creative expression (1-7)"
+                },
+                "social": {
+                    "type": "number",
+                    "description": "Interest in helping and teaching others (1-7)"
+                },
+                "enterprising": {
+                    "type": "number",
+                    "description": "Interest in leadership and business (1-7)"
+                },
+                "conventional": {
+                    "type": "number",
+                    "description": "Interest in organizing and managing data (1-7)"
+                }
+            },
+            "required": ["realistic", "investigative", "artistic", "social", "enterprising", "conventional"]
+        }
     }
 ]

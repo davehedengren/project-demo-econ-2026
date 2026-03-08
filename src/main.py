@@ -3,6 +3,7 @@ Main entry point for the career counselor chatbot.
 Provides both CLI and web interfaces.
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -10,26 +11,72 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, render_template_string, request, jsonify, session
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 # Load environment variables
 load_dotenv()
 
 # Verify API key
 if not os.environ.get("ANTHROPIC_API_KEY"):
+    logger.error("ANTHROPIC_API_KEY not found in environment.")
     print("Error: ANTHROPIC_API_KEY not found in environment.")
     print("Please create a .env file with your API key.")
     sys.exit(1)
 
-from .chatbot import create_chatbot
+from .chatbot import ChatbotError, create_chatbot
 from .occupation_store import OccupationStore
+from .onet_data import OnetStore, load_onet_data
 from .state_data import load_state_data
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 
-# Global stores
+# Global stores — all backed by a single SQLite database
 data_dir = Path(__file__).parent.parent / "data"
-occupation_store = OccupationStore(str(data_dir / "xml-compilation.xml"))
-state_store = load_state_data(str(data_dir / "state_M2024_dl.xlsx"))
+db_path = str(data_dir / "career_data.db")
+
+if not (data_dir / "career_data.db").exists():
+    logger.error("Database not found at %s", db_path)
+    print(f"Error: career_data.db not found. Run 'python build_db.py' first.")
+    sys.exit(1)
+
+try:
+    occupation_store = OccupationStore(db_path)
+    logger.info("Loaded %d occupations from database.", occupation_store.count)
+except Exception as e:
+    logger.error("Failed to load occupation data: %s", e, exc_info=True)
+    print(f"Error loading occupation data: {e}")
+    sys.exit(1)
+
+try:
+    state_store = load_state_data(db_path)
+    logger.info("Loaded state-level wage data from database.")
+except Exception as e:
+    logger.error("Failed to load state data: %s", e, exc_info=True)
+    print(f"Error loading state data: {e}")
+    sys.exit(1)
+
+# O*NET data (optional — enhances skills/interests features)
+onet_store = None
+try:
+    # Check if O*NET tables have data
+    import sqlite3
+    _check = sqlite3.connect(db_path)
+    onet_count = _check.execute("SELECT COUNT(*) FROM onet_occupations").fetchone()[0]
+    _check.close()
+    if onet_count > 0:
+        onet_store = load_onet_data(db_path)
+        logger.info("Loaded O*NET skills, knowledge, and interests data.")
+    else:
+        logger.info("O*NET tables empty — skills/interests tools disabled.")
+except Exception as e:
+    logger.warning("Could not load O*NET data (non-fatal): %s", e)
+    onet_store = None
 
 # Global chatbot instances (keyed by session)
 chatbots = {}
@@ -765,10 +812,18 @@ HTML_TEMPLATE = """
                 });
                 const data = await response.json();
                 hideTyping();
-                addMessage(data.response, 'assistant');
+                if (data.error) {
+                    addMessage('**Error:** ' + data.error, 'assistant');
+                } else {
+                    addMessage(data.response, 'assistant');
+                }
             } catch (error) {
                 hideTyping();
-                addMessage('Sorry, something went wrong. Please try again.', 'assistant');
+                if (error.name === 'TypeError' && !navigator.onLine) {
+                    addMessage('You appear to be offline. Please check your connection and try again.', 'assistant');
+                } else {
+                    addMessage('Sorry, something went wrong. Please try again.', 'assistant');
+                }
             }
             sendBtn.disabled = false;
             userInput.focus();
@@ -814,41 +869,59 @@ def index():
 @app.route('/api/occupations')
 def get_occupations():
     """Get all occupations for the explore panel."""
-    occs = []
-    for occ in occupation_store.occupations:
-        occs.append({
-            "code": occ.code,
-            "title": occ.title,
-            "description": occ.description,
-            "category": occ.category,
-            "median_pay": occ.median_pay_annual,
-            "education": occ.entry_level_education,
-            "outlook": occ.employment_outlook,
-            "growth_pct": occ.employment_outlook_value,
-            "num_jobs": occ.number_of_jobs,
-            "openings": occ.employment_openings,
-            "url": occ.url,
-        })
-    occs.sort(key=lambda x: x['num_jobs'] or 0, reverse=True)
-    return jsonify({"occupations": occs, "categories": sorted(occupation_store.categories)})
+    try:
+        rows = occupation_store.get_all_for_api()
+        occs = [{
+            "code": r["code"],
+            "title": r["title"],
+            "description": r["description"],
+            "category": r["category"],
+            "median_pay": r["median_pay_annual"],
+            "education": r["entry_level_education"],
+            "outlook": r["employment_outlook"],
+            "growth_pct": r["employment_outlook_value"],
+            "num_jobs": r["number_of_jobs"],
+            "openings": r["employment_openings"],
+            "url": r["url"],
+        } for r in rows]
+        return jsonify({"occupations": occs, "categories": sorted(occupation_store.categories)})
+    except Exception as e:
+        logger.error("Error loading occupations: %s", e, exc_info=True)
+        return jsonify({"error": "Failed to load occupation data."}), 500
 
 
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
+    if not data:
+        return jsonify({'error': 'Invalid request body.'}), 400
     message = data.get('message', '')
     if not message:
-        return jsonify({'error': 'No message provided'}), 400
-    chatbot = get_chatbot()
-    response = chatbot.chat(message)
-    return jsonify({'response': response})
+        return jsonify({'error': 'No message provided.'}), 400
+    if len(message) > 10000:
+        return jsonify({'error': 'Message too long. Please keep it under 10,000 characters.'}), 400
+
+    try:
+        chatbot = get_chatbot()
+        response = chatbot.chat(message)
+        return jsonify({'response': response})
+    except ChatbotError as e:
+        logger.warning("Chatbot error: %s", e)
+        return jsonify({'error': str(e)}), 502
+    except Exception as e:
+        logger.error("Unexpected error in /chat: %s", e, exc_info=True)
+        return jsonify({'error': 'Something went wrong. Please try again.'}), 500
 
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    chatbot = get_chatbot()
-    chatbot.reset()
-    return jsonify({'status': 'ok'})
+    try:
+        chatbot = get_chatbot()
+        chatbot.reset()
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        logger.error("Error resetting chat: %s", e, exc_info=True)
+        return jsonify({'error': 'Failed to reset conversation.'}), 500
 
 
 def run_cli():
@@ -882,6 +955,13 @@ def run_cli():
         except KeyboardInterrupt:
             print("\n\nGoodbye!")
             break
+        except ChatbotError as e:
+            print(f"\n\nError: {e}")
+            print("Please try again.")
+        except Exception as e:
+            logger.error("Unexpected CLI error: %s", e, exc_info=True)
+            print(f"\n\nSomething went wrong: {e}")
+            print("Please try again.")
 
 
 def main():
