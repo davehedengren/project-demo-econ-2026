@@ -34,50 +34,53 @@ from .state_data import load_state_data
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 
-# Global stores — all backed by a single SQLite database
 data_dir = Path(__file__).parent.parent / "data"
 db_path = str(data_dir / "career_data.db")
 
-if not (data_dir / "career_data.db").exists():
-    logger.error("Database not found at %s", db_path)
-    print(f"Error: career_data.db not found. Run 'python build_db.py' first.")
-    sys.exit(1)
-
-try:
-    occupation_store = OccupationStore(db_path)
-    logger.info("Loaded %d occupations from database.", occupation_store.count)
-except Exception as e:
-    logger.error("Failed to load occupation data: %s", e, exc_info=True)
-    print(f"Error loading occupation data: {e}")
-    sys.exit(1)
-
-try:
-    state_store = load_state_data(db_path)
-    logger.info("Loaded state-level wage data from database.")
-except Exception as e:
-    logger.error("Failed to load state data: %s", e, exc_info=True)
-    print(f"Error loading state data: {e}")
-    sys.exit(1)
-
-# O*NET data (optional — enhances skills/interests features)
+occupation_store = None
+state_store = None
 onet_store = None
-try:
-    # Check if O*NET tables have data
-    import sqlite3
-    _check = sqlite3.connect(db_path)
-    onet_count = _check.execute("SELECT COUNT(*) FROM onet_occupations").fetchone()[0]
-    _check.close()
-    if onet_count > 0:
-        onet_store = load_onet_data(db_path)
-        logger.info("Loaded O*NET skills, knowledge, and interests data.")
-    else:
-        logger.info("O*NET tables empty — skills/interests tools disabled.")
-except Exception as e:
-    logger.warning("Could not load O*NET data (non-fatal): %s", e)
-    onet_store = None
-
-# Global chatbot instances (keyed by session)
+_data_loaded = False
 chatbots = {}
+
+
+def _ensure_data_loaded():
+    """Lazy-load all data stores on first real request."""
+    global occupation_store, state_store, onet_store, _data_loaded
+    if _data_loaded:
+        return
+    _data_loaded = True
+
+    if not (data_dir / "career_data.db").exists():
+        logger.error("Database not found at %s", db_path)
+        raise RuntimeError("career_data.db not found. Run 'python build_db.py' first.")
+
+    try:
+        occupation_store = OccupationStore(db_path)
+        logger.info("Loaded %d occupations from database.", occupation_store.count)
+    except Exception as e:
+        logger.error("Failed to load occupation data: %s", e, exc_info=True)
+        raise
+
+    try:
+        state_store = load_state_data(db_path)
+        logger.info("Loaded state-level wage data from database.")
+    except Exception as e:
+        logger.error("Failed to load state data: %s", e, exc_info=True)
+        raise
+
+    import sqlite3
+    try:
+        _check = sqlite3.connect(db_path)
+        onet_count = _check.execute("SELECT COUNT(*) FROM onet_occupations").fetchone()[0]
+        _check.close()
+        if onet_count > 0:
+            onet_store = load_onet_data(db_path)
+            logger.info("Loaded O*NET skills, knowledge, and interests data.")
+        else:
+            logger.info("O*NET tables empty — skills/interests tools disabled.")
+    except Exception as e:
+        logger.warning("Could not load O*NET data (non-fatal): %s", e)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -869,6 +872,7 @@ HTML_TEMPLATE = """
 
 def get_chatbot():
     """Get or create chatbot for current session."""
+    _ensure_data_loaded()
     session_id = session.get('session_id')
     if not session_id:
         session_id = os.urandom(16).hex()
@@ -891,6 +895,7 @@ def health():
 @app.route('/api/occupations')
 def get_occupations():
     """Get all occupations for the explore panel."""
+    _ensure_data_loaded()
     try:
         rows = occupation_store.get_all_for_api()
         occs = [{

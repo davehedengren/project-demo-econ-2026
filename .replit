@@ -17,10 +17,6 @@ deploymentTarget = "autoscale"
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 8080
-externalPort = 80
-
 [agent]
 expertMode = true
 
@@ -40,10 +36,10 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python -m src.main --port 5000"
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
