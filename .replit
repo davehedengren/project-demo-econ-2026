@@ -10,12 +10,20 @@ channel = "stable-25_05"
 packages = ["glibcLocales"]
 
 [deployment]
-run = ["gunicorn", "--bind=0.0.0.0:8080", "--timeout=120", "--workers=2", "src.main:app"]
+run = ["gunicorn", "--bind=0.0.0.0:5000", "--timeout=120", "--workers=2", "src.main:app"]
 deploymentTarget = "autoscale"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 8099
+externalPort = 8099
 
 [agent]
 expertMode = true

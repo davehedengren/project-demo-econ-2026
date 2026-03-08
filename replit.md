@@ -23,7 +23,7 @@ https://github.com/davehedengren/project-demo-econ-2026
 ## Environment
 - **Secret**: `ANTHROPIC_API_KEY` (required for chat functionality)
 - **Dev**: Flask dev server on port 5000
-- **Production**: Gunicorn on port 8080, autoscale deployment target
+- **Production**: Gunicorn on port 5000, autoscale deployment target
 - **Data loading**: Lazy-loaded on first request (not at startup) to ensure fast healthcheck responses
 
 ## Deployment Notes
