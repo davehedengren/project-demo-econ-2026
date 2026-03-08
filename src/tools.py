@@ -9,10 +9,11 @@ from typing import Any, Optional
 from jinja2 import Environment, FileSystemLoader
 
 from .occupation_store import OccupationStore
+from .onet_data import OnetStore
 from .state_data import StateDataStore
 
 
-def load_tool_definitions(store: OccupationStore) -> list[dict]:
+def load_tool_definitions(store: OccupationStore, onet_store: Optional[OnetStore] = None) -> list[dict]:
     """Load tool definitions from Jinja2 template."""
     templates_dir = Path(__file__).parent / "templates"
     env = Environment(loader=FileSystemLoader(templates_dir))
@@ -24,6 +25,7 @@ def load_tool_definitions(store: OccupationStore) -> list[dict]:
         categories=stats["categories"],
         education_levels=stats["education_levels"],
         outlook_categories=stats["outlook_categories"],
+        skill_names=onet_store.get_all_skill_names() if onet_store else [],
     )
 
     return json.loads(rendered)
@@ -33,7 +35,8 @@ def execute_tool(
     store: OccupationStore,
     state_store: StateDataStore,
     tool_name: str,
-    tool_input: dict[str, Any]
+    tool_input: dict[str, Any],
+    onet_store: Optional[OnetStore] = None,
 ) -> str:
     """Execute a tool and return the result as a string."""
 
@@ -147,10 +150,10 @@ def execute_tool(
             occ = store.get_by_code(code)
             if not occ:
                 return f"Occupation with code '{code}' not found."
-            return f"No similar occupations found for {occ.title}."
+            return f"No similar occupations found for {occ['title']}."
 
         occ = store.get_by_code(code)
-        output = f"Similar occupations to **{occ.title}**:\n\n"
+        output = f"Similar occupations to **{occ['title']}**:\n\n"
 
         for s in similar:
             output += f"**{s['title']}**\n"
@@ -168,7 +171,7 @@ def execute_tool(
             return f"Occupation with code '{code}' not found."
 
         occ = store.get_by_code(code)
-        national_median = occ.median_pay_annual if occ else None
+        national_median = occ["median_pay_annual"] if occ else None
 
         # Try each SOC code until we find data
         state_data = None
@@ -181,10 +184,10 @@ def execute_tool(
             # Try to find the state
             found_state = state_store.find_state(state)
             if found_state:
-                return f"No data found for '{occ.title}' in {found_state}. This occupation may not be tracked separately in this state."
+                return f"No data found for '{occ['title']}' in {found_state}. This occupation may not be tracked separately in this state."
             return f"State '{state}' not found. Please use full state name (e.g., 'California', 'New York')."
 
-        output = f"# {occ.title} in {state_data['state']}\n\n"
+        output = f"# {occ['title']} in {state_data['state']}\n\n"
         output += "## Employment & Wages\n"
 
         if state_data['employment']:
@@ -229,7 +232,7 @@ def execute_tool(
             return f"Occupation with code '{code}' not found."
 
         occ = store.get_by_code(code)
-        national_median = occ.median_pay_annual if occ else None
+        national_median = occ['median_pay_annual'] if occ else None
 
         # Get data for each state
         results = []
@@ -241,9 +244,9 @@ def execute_tool(
                     break
 
         if not results:
-            return f"No state data found for '{occ.title}' in the specified states."
+            return f"No state data found for '{occ['title']}' in the specified states."
 
-        output = f"# {occ.title} - State Comparison\n\n"
+        output = f"# {occ['title']} - State Comparison\n\n"
         if national_median:
             output += f"**National Median:** ${national_median:,}/year\n\n"
 
@@ -284,9 +287,9 @@ def execute_tool(
                 break
 
         if not all_states:
-            return f"No state data found for '{occ.title}'."
+            return f"No state data found for '{occ['title']}'."
 
-        output = f"# Top States for {occ.title}\n\n"
+        output = f"# Top States for {occ['title']}\n\n"
         output += "States ranked by total employment:\n\n"
 
         output += "| Rank | State | Jobs | Median Salary | Location Quotient |\n"
@@ -298,6 +301,129 @@ def execute_tool(
             lq = f"{data['location_quotient']:.2f}" if data['location_quotient'] else "N/A"
 
             output += f"| {i} | {data['state']} | {jobs} | {salary} | {lq} |\n"
+
+        return output
+
+    # --- O*NET-powered tools ---
+
+    elif tool_name == "get_occupation_skills":
+        if not onet_store:
+            return "Skills data is not available."
+
+        code = tool_input.get("code", "")
+        soc_codes = store.get_soc_codes(code)
+        occ = store.get_by_code(code)
+        if not occ:
+            return f"Occupation with code '{code}' not found."
+
+        skills = onet_store.get_skills(soc_codes, top_n=10)
+        knowledge = onet_store.get_knowledge(soc_codes, top_n=8)
+
+        if not skills and not knowledge:
+            return f"No skills data found for '{occ['title']}'. This occupation may not have a detailed O*NET profile."
+
+        output = f"# Skills & Knowledge for {occ['title']}\n\n"
+
+        if skills:
+            output += "## Top Skills (by importance, scale 1-5)\n"
+            for s in skills:
+                bar = "█" * int(s["importance"]) + "░" * (5 - int(s["importance"]))
+                output += f"- **{s['skill']}**: {s['importance']:.1f} {bar}\n"
+            output += "\n"
+
+        if knowledge:
+            output += "## Key Knowledge Areas (by importance, scale 1-5)\n"
+            for k in knowledge:
+                bar = "█" * int(k["importance"]) + "░" * (5 - int(k["importance"]))
+                output += f"- **{k['area']}**: {k['importance']:.1f} {bar}\n"
+
+        return output
+
+    elif tool_name == "get_occupation_interests":
+        if not onet_store:
+            return "Interests data is not available."
+
+        code = tool_input.get("code", "")
+        soc_codes = store.get_soc_codes(code)
+        occ = store.get_by_code(code)
+        if not occ:
+            return f"Occupation with code '{code}' not found."
+
+        interests = onet_store.get_interests(soc_codes)
+        if not interests:
+            return f"No interest profile found for '{occ['title']}'."
+
+        output = f"# Interest Profile for {occ['title']}\n\n"
+        output += "Holland Code personality types (scale 1-7, higher = stronger fit):\n\n"
+
+        for i in interests:
+            bar = "█" * round(i["score"]) + "░" * (7 - round(i["score"]))
+            output += f"- **{i['interest']}** ({i['score']:.1f}): {i['description']} {bar}\n"
+
+        # Identify top type
+        top = interests[0]
+        output += f"\n**Primary type: {top['interest']}** — This career most aligns with people who enjoy {top['description'].lower()}.\n"
+
+        return output
+
+    elif tool_name == "find_careers_by_skills":
+        if not onet_store:
+            return "Skills data is not available."
+
+        skill_names = tool_input.get("skills", [])
+        if not skill_names:
+            return "Please specify at least one skill to search for."
+
+        results = onet_store.find_by_skills(skill_names, top_n=15)
+        if not results:
+            return f"No occupations found emphasizing skills: {', '.join(skill_names)}. Check spelling — available skills include: {', '.join(onet_store.get_all_skill_names()[:10])}..."
+
+        output = f"# Careers Matching Skills: {', '.join(skill_names)}\n\n"
+        output += "Occupations ranked by how much they value these skills:\n\n"
+
+        # Try to enrich with BLS data
+        for r in results:
+            bls_occ = store.get_by_soc_code(r["soc_code"])
+            salary_str = ""
+            if bls_occ and bls_occ["median_pay_annual"]:
+                salary_str = f" | ${bls_occ['median_pay_annual']:,}/yr"
+
+            output += f"**{r['title']}** (SOC: {r['soc_code']}{salary_str})\n"
+
+        return output
+
+    elif tool_name == "find_careers_by_interests":
+        if not onet_store:
+            return "Interests data is not available."
+
+        profile = {
+            "Realistic": tool_input.get("realistic", 1),
+            "Investigative": tool_input.get("investigative", 1),
+            "Artistic": tool_input.get("artistic", 1),
+            "Social": tool_input.get("social", 1),
+            "Enterprising": tool_input.get("enterprising", 1),
+            "Conventional": tool_input.get("conventional", 1),
+        }
+
+        results = onet_store.find_by_interests(profile, top_n=15)
+        if not results:
+            return "No matching occupations found for that interest profile."
+
+        # Build profile summary
+        top_interests = sorted(profile.items(), key=lambda x: x[1], reverse=True)[:3]
+        profile_desc = ", ".join(f"{name} ({val})" for name, val in top_interests)
+
+        output = f"# Careers Matching Interest Profile\n\n"
+        output += f"**Top interests:** {profile_desc}\n\n"
+        output += "Best-matching occupations:\n\n"
+
+        for r in results:
+            bls_occ = store.get_by_soc_code(r["soc_code"])
+            salary_str = ""
+            if bls_occ and bls_occ["median_pay_annual"]:
+                salary_str = f" | ${bls_occ['median_pay_annual']:,}/yr"
+
+            output += f"**{r['title']}** (SOC: {r['soc_code']}{salary_str})\n"
 
         return output
 

@@ -1,11 +1,10 @@
 """
-In-memory store for occupation data with search and filter capabilities.
+SQLite-backed store for BLS occupation data with search and filter capabilities.
 """
 
+import sqlite3
 from dataclasses import dataclass
 from typing import Optional
-
-from .data_loader import Occupation, load_occupations
 
 
 @dataclass
@@ -21,91 +20,112 @@ class OccupationSummary:
 
 
 class OccupationStore:
-    """In-memory store for BLS occupation data."""
+    """SQLite-backed store for BLS occupation data."""
 
-    def __init__(self, xml_path: str):
-        self.occupations: list[Occupation] = load_occupations(xml_path)
-        self._by_code: dict[str, Occupation] = {occ.code: occ for occ in self.occupations}
-        self._by_title_lower: dict[str, Occupation] = {occ.title.lower(): occ for occ in self.occupations}
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
 
-        # Build indexes
-        self.categories: set[str] = {occ.category for occ in self.occupations}
-        self.education_levels: set[str] = {occ.entry_level_education for occ in self.occupations if occ.entry_level_education}
-        self.outlook_categories: set[str] = {occ.employment_outlook for occ in self.occupations if occ.employment_outlook}
+        # Cache lightweight metadata
+        self._count = self._conn.execute("SELECT COUNT(*) FROM occupations").fetchone()[0]
+        self._categories = {r[0] for r in self._conn.execute(
+            "SELECT DISTINCT category FROM occupations WHERE category != ''"
+        ).fetchall()}
+        self._education_levels = {r[0] for r in self._conn.execute(
+            "SELECT DISTINCT entry_level_education FROM occupations WHERE entry_level_education != ''"
+        ).fetchall()}
+        self._outlook_categories = {r[0] for r in self._conn.execute(
+            "SELECT DISTINCT employment_outlook FROM occupations WHERE employment_outlook != ''"
+        ).fetchall()}
 
     @property
     def count(self) -> int:
-        return len(self.occupations)
+        return self._count
 
     @property
     def category_count(self) -> int:
-        return len(self.categories)
+        return len(self._categories)
 
-    def get_by_code(self, code: str) -> Optional[Occupation]:
-        """Get occupation by its code."""
-        return self._by_code.get(code)
+    @property
+    def categories(self) -> set[str]:
+        return self._categories
 
-    def get_by_title(self, title: str) -> Optional[Occupation]:
-        """Get occupation by exact title (case-insensitive)."""
-        return self._by_title_lower.get(title.lower())
+    @property
+    def education_levels(self) -> set[str]:
+        return self._education_levels
+
+    @property
+    def outlook_categories(self) -> set[str]:
+        return self._outlook_categories
+
+    def get_all_for_api(self) -> list[dict]:
+        """Get all occupations with fields needed for the /api/occupations endpoint."""
+        rows = self._conn.execute("""
+            SELECT code, title, description, category, median_pay_annual,
+                   entry_level_education, employment_outlook, employment_outlook_value,
+                   number_of_jobs, employment_openings, url
+            FROM occupations
+            ORDER BY COALESCE(number_of_jobs, 0) DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_by_code(self, code: str) -> Optional[dict]:
+        """Get occupation by its code. Returns a dict with all fields."""
+        row = self._conn.execute(
+            "SELECT * FROM occupations WHERE code = ?", (code,)
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["soc_codes"] = self.get_soc_codes(code)
+        return result
 
     def search(self, query: str, limit: int = 10) -> list[OccupationSummary]:
-        """
-        Search occupations by keyword in title and description.
-        Returns ranked results.
-        """
+        """Search occupations by keyword with relevance scoring."""
         query_lower = query.lower()
         query_words = query_lower.split()
 
+        # Fetch only the columns needed for scoring
+        rows = self._conn.execute("""
+            SELECT code, title, description, category, median_pay_annual,
+                   entry_level_education, employment_outlook, what_they_do
+            FROM occupations
+        """).fetchall()
+
         results = []
-        for occ in self.occupations:
-            title_lower = occ.title.lower()
-            desc_lower = occ.description.lower()
-            what_lower = occ.what_they_do.lower()
+        for row in rows:
+            title_lower = (row["title"] or "").lower()
+            desc_lower = (row["description"] or "").lower()
+            what_lower = (row["what_they_do"] or "").lower()
 
-            # Score based on matches
             score = 0
-
-            # Exact title match
             if query_lower == title_lower:
                 score += 100
-
-            # Title contains full query
             elif query_lower in title_lower:
                 score += 50
 
-            # Title contains query words
             for word in query_words:
                 if word in title_lower:
                     score += 20
-
-            # Description contains query
-            if query_lower in desc_lower:
-                score += 10
-
-            # What they do contains query words
-            for word in query_words:
+                if word in desc_lower:
+                    score += 10
                 if word in what_lower:
                     score += 5
 
             if score > 0:
-                results.append((score, occ))
+                results.append((score, OccupationSummary(
+                    code=row["code"],
+                    title=row["title"],
+                    description=row["description"],
+                    category=row["category"],
+                    median_pay_annual=row["median_pay_annual"],
+                    entry_level_education=row["entry_level_education"],
+                    employment_outlook=row["employment_outlook"],
+                )))
 
-        # Sort by score descending
         results.sort(key=lambda x: x[0], reverse=True)
-
-        return [
-            OccupationSummary(
-                code=occ.code,
-                title=occ.title,
-                description=occ.description,
-                category=occ.category,
-                median_pay_annual=occ.median_pay_annual,
-                entry_level_education=occ.entry_level_education,
-                employment_outlook=occ.employment_outlook,
-            )
-            for _, occ in results[:limit]
-        ]
+        return [r[1] for r in results[:limit]]
 
     def filter(
         self,
@@ -116,113 +136,107 @@ class OccupationStore:
         outlook: Optional[list[str]] = None,
         limit: int = 20,
     ) -> list[OccupationSummary]:
-        """
-        Filter occupations by multiple criteria.
-        """
-        results = []
+        """Filter occupations by criteria using SQL."""
+        conditions = []
+        params = []
 
-        for occ in self.occupations:
-            # Category filter
-            if categories and occ.category not in categories:
-                continue
+        if categories:
+            placeholders = ",".join("?" * len(categories))
+            conditions.append(f"category IN ({placeholders})")
+            params.extend(categories)
 
-            # Salary filter
-            if min_salary and (occ.median_pay_annual is None or occ.median_pay_annual < min_salary):
-                continue
-            if max_salary and (occ.median_pay_annual is None or occ.median_pay_annual > max_salary):
-                continue
+        if min_salary is not None:
+            conditions.append("median_pay_annual >= ?")
+            params.append(min_salary)
 
-            # Education filter (partial match)
-            if education_levels:
-                edu_match = False
-                for edu in education_levels:
-                    if edu.lower() in occ.entry_level_education.lower():
-                        edu_match = True
-                        break
-                if not edu_match:
-                    continue
+        if max_salary is not None:
+            conditions.append("median_pay_annual <= ?")
+            params.append(max_salary)
 
-            # Outlook filter (partial match)
-            if outlook:
-                outlook_match = False
-                for out in outlook:
-                    if out.lower() in occ.employment_outlook.lower():
-                        outlook_match = True
-                        break
-                if not outlook_match:
-                    continue
+        if education_levels:
+            edu_conditions = []
+            for edu in education_levels:
+                edu_conditions.append("LOWER(entry_level_education) LIKE ?")
+                params.append(f"%{edu.lower()}%")
+            conditions.append(f"({' OR '.join(edu_conditions)})")
 
-            results.append(OccupationSummary(
-                code=occ.code,
-                title=occ.title,
-                description=occ.description,
-                category=occ.category,
-                median_pay_annual=occ.median_pay_annual,
-                entry_level_education=occ.entry_level_education,
-                employment_outlook=occ.employment_outlook,
-            ))
+        if outlook:
+            out_conditions = []
+            for out in outlook:
+                out_conditions.append("LOWER(employment_outlook) LIKE ?")
+                params.append(f"%{out.lower()}%")
+            conditions.append(f"({' OR '.join(out_conditions)})")
 
-            if len(results) >= limit:
-                break
+        where = " AND ".join(conditions) if conditions else "1=1"
 
-        return results
+        rows = self._conn.execute(f"""
+            SELECT code, title, description, category, median_pay_annual,
+                   entry_level_education, employment_outlook
+            FROM occupations
+            WHERE {where}
+            LIMIT ?
+        """, params + [limit]).fetchall()
+
+        return [OccupationSummary(
+            code=r["code"], title=r["title"], description=r["description"],
+            category=r["category"], median_pay_annual=r["median_pay_annual"],
+            entry_level_education=r["entry_level_education"],
+            employment_outlook=r["employment_outlook"],
+        ) for r in rows]
 
     def get_details(self, code: str) -> Optional[dict]:
         """Get full occupation details as a dictionary."""
-        occ = self.get_by_code(code)
-        if not occ:
+        row = self._conn.execute(
+            "SELECT * FROM occupations WHERE code = ?", (code,)
+        ).fetchone()
+        if not row:
             return None
 
-        return {
-            "code": occ.code,
-            "title": occ.title,
-            "description": occ.description,
-            "category": occ.category,
-            "soc_codes": occ.soc_codes,
-            "median_pay_annual": occ.median_pay_annual,
-            "median_pay_hourly": occ.median_pay_hourly,
-            "entry_level_education": occ.entry_level_education,
-            "work_experience": occ.work_experience,
-            "on_the_job_training": occ.on_the_job_training,
-            "number_of_jobs": occ.number_of_jobs,
-            "employment_outlook": occ.employment_outlook,
-            "employment_openings": occ.employment_openings,
-            "what_they_do": occ.what_they_do[:2000] if occ.what_they_do else "",  # Truncate for context
-            "work_environment": occ.work_environment[:1000] if occ.work_environment else "",
-            "how_to_become_one": occ.how_to_become_one[:1500] if occ.how_to_become_one else "",
-            "pay_details": occ.pay_details[:500] if occ.pay_details else "",
-            "job_outlook_details": occ.job_outlook_details[:1000] if occ.job_outlook_details else "",
-        }
+        result = dict(row)
+        result["soc_codes"] = self.get_soc_codes(code)
+
+        # Truncate long text fields for LLM context
+        for field, max_len in [("what_they_do", 2000), ("work_environment", 1000),
+                                ("how_to_become_one", 1500), ("job_outlook_details", 1000)]:
+            if result.get(field):
+                result[field] = result[field][:max_len]
+
+        return result
 
     def get_similar(self, code: str) -> list[dict]:
-        """Get similar occupations for a given occupation code."""
-        occ = self.get_by_code(code)
-        if not occ:
-            return []
-
-        return [
-            {
-                "title": title,
-                "code": sim_code,
-                "education": education,
-                "salary": salary,
-            }
-            for title, sim_code, education, salary in occ.similar_occupations
-        ]
+        """Get similar occupations for a given code."""
+        rows = self._conn.execute("""
+            SELECT similar_title as title, similar_code as code, education, salary
+            FROM similar_occupations
+            WHERE occupation_code = ?
+        """, (code,)).fetchall()
+        return [dict(r) for r in rows]
 
     def get_soc_codes(self, code: str) -> list[str]:
         """Get SOC codes for an occupation."""
-        occ = self.get_by_code(code)
-        if not occ:
-            return []
-        return occ.soc_codes
+        rows = self._conn.execute(
+            "SELECT soc_code FROM occupation_soc_codes WHERE occupation_code = ?",
+            (code,),
+        ).fetchall()
+        return [r[0] for r in rows]
+
+    def get_by_soc_code(self, soc_code: str) -> Optional[dict]:
+        """Get BLS occupation matching a SOC code."""
+        row = self._conn.execute("""
+            SELECT o.code, o.title, o.median_pay_annual
+            FROM occupations o
+            JOIN occupation_soc_codes s ON o.code = s.occupation_code
+            WHERE s.soc_code = ?
+            LIMIT 1
+        """, (soc_code,)).fetchone()
+        return dict(row) if row else None
 
     def get_stats(self) -> dict:
         """Get statistics about the loaded data."""
         return {
-            "total_occupations": len(self.occupations),
-            "categories": sorted(self.categories),
-            "category_count": len(self.categories),
-            "education_levels": sorted(self.education_levels),
-            "outlook_categories": sorted(self.outlook_categories),
+            "total_occupations": self._count,
+            "categories": sorted(self._categories),
+            "category_count": len(self._categories),
+            "education_levels": sorted(self._education_levels),
+            "outlook_categories": sorted(self._outlook_categories),
         }
