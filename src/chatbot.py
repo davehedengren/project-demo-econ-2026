@@ -12,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .occupation_store import OccupationStore
 from .onet_data import OnetStore
+from .profile_search import ProfileSearch, load_profile_search
 from .state_data import StateDataStore, load_state_data
 from .tools import execute_tool, load_tool_definitions
 
@@ -44,14 +45,16 @@ class CareerCounselorChatbot:
         store: OccupationStore,
         state_store: StateDataStore,
         onet_store: Optional[OnetStore] = None,
+        profile_search: Optional[ProfileSearch] = None,
     ):
         self.store = store
         self.state_store = state_store
         self.onet_store = onet_store
+        self.profile_search = profile_search
         self.client = anthropic.Anthropic()
         self.model = "claude-opus-4-6"
         self.messages: list[dict] = []
-        self.tools = load_tool_definitions(store, onet_store)
+        self.tools = load_tool_definitions(store, onet_store, profile_search)
         self.system_prompt = self._load_system_prompt()
 
     def _load_system_prompt(self) -> str:
@@ -64,6 +67,7 @@ class CareerCounselorChatbot:
             occupation_count=self.store.count,
             category_count=self.store.category_count,
             has_onet=self.onet_store is not None,
+            has_profiles=self.profile_search is not None,
         )
 
     def _call_api(self) -> anthropic.types.Message:
@@ -108,6 +112,7 @@ class CareerCounselorChatbot:
             result = execute_tool(
                 self.store, self.state_store, tool_name, tool_input,
                 onet_store=self.onet_store,
+                profile_search=self.profile_search,
             )
         except Exception as e:
             logger.error("Tool '%s' raised an exception: %s", tool_name, e, exc_info=True)
@@ -228,4 +233,13 @@ def create_chatbot(db_path: str | None = None) -> CareerCounselorChatbot:
     except Exception:
         pass
 
-    return CareerCounselorChatbot(store, state_store, onet_store)
+    # Load profile search if profiles have been generated
+    profile_search = None
+    try:
+        profile_search = load_profile_search()
+        if profile_search:
+            logger.info("Profile search loaded: %d occupation profiles", profile_search.count)
+    except Exception:
+        logger.warning("Could not load profile search, continuing without it")
+
+    return CareerCounselorChatbot(store, state_store, onet_store, profile_search)

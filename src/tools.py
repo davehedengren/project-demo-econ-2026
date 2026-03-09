@@ -10,10 +10,15 @@ from jinja2 import Environment, FileSystemLoader
 
 from .occupation_store import OccupationStore
 from .onet_data import OnetStore
+from .profile_search import ProfileSearch
 from .state_data import StateDataStore
 
 
-def load_tool_definitions(store: OccupationStore, onet_store: Optional[OnetStore] = None) -> list[dict]:
+def load_tool_definitions(
+    store: OccupationStore,
+    onet_store: Optional[OnetStore] = None,
+    profile_search: Optional[ProfileSearch] = None,
+) -> list[dict]:
     """Load tool definitions from Jinja2 template."""
     templates_dir = Path(__file__).parent / "templates"
     env = Environment(loader=FileSystemLoader(templates_dir))
@@ -26,6 +31,7 @@ def load_tool_definitions(store: OccupationStore, onet_store: Optional[OnetStore
         education_levels=stats["education_levels"],
         outlook_categories=stats["outlook_categories"],
         skill_names=onet_store.get_all_skill_names() if onet_store else [],
+        has_profiles=profile_search is not None,
     )
 
     return json.loads(rendered)
@@ -37,10 +43,52 @@ def execute_tool(
     tool_name: str,
     tool_input: dict[str, Any],
     onet_store: Optional[OnetStore] = None,
+    profile_search: Optional[ProfileSearch] = None,
 ) -> str:
     """Execute a tool and return the result as a string."""
 
-    if tool_name == "search_occupations":
+    if tool_name == "semantic_search_careers":
+        if not profile_search:
+            return "Career profiles are not available. Use search_occupations instead."
+
+        query = tool_input.get("query", "")
+        top_n = min(tool_input.get("top_n", 10), 20)
+        results = profile_search.search(query, top_n=top_n)
+
+        if not results:
+            return f"No careers found matching '{query}'. Try rephrasing with different words."
+
+        output = f"Found {len(results)} careers matching: *{query}*\n\n"
+        for r in results:
+            # Enrich with salary from store
+            occ = store.get_by_code(r["code"])
+            salary_str = ""
+            if occ and occ.get("median_pay_annual"):
+                salary_str = f" | ${occ['median_pay_annual']:,}/yr"
+            edu_str = ""
+            if occ and occ.get("entry_level_education"):
+                edu_str = f" | {occ['entry_level_education']}"
+            outlook_str = ""
+            if occ and occ.get("employment_outlook"):
+                outlook_str = f" | Outlook: {occ['employment_outlook']}"
+
+            output += f"**{r['title']}** (code: {r['code']}, relevance: {r['score']:.2f}{salary_str}{edu_str}{outlook_str})\n"
+            output += f"  {r['snippet']}\n\n"
+
+        output += "\n*Use read_career_profile with any code above to get the full detailed profile.*"
+        return output
+
+    elif tool_name == "read_career_profile":
+        if not profile_search:
+            return "Career profiles are not available. Use get_occupation_details instead."
+
+        code = tool_input.get("code", "")
+        profile = profile_search.get_profile(code)
+        if not profile:
+            return f"No profile found for code '{code}'. Check the code from search results."
+        return profile
+
+    elif tool_name == "search_occupations":
         query = tool_input.get("query", "")
         results = store.search(query, limit=10)
 

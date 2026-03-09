@@ -34,3 +34,6 @@ venv/
 # Uncomment if you don't want to track these:
 # data/*.xml
 # data/*.xlsx
+
+# Generated occupation profiles (rebuild with: python build_profiles.py)
+data/profiles/

@@ -1,14 +1,48 @@
 {# Tool definitions for the career counselor chatbot #}
 [
+{% if has_profiles %}
     {
-        "name": "search_occupations",
-        "description": "Search for occupations by keyword. Use this when a student mentions specific interests, subjects, careers, or job types they're curious about. Returns matching occupations with salary, education, and outlook info.",
+        "name": "semantic_search_careers",
+        "description": "Search for careers using natural language descriptions of interests, skills, personality, or goals. This uses semantic matching — much better than keyword search for understanding what a student means. Use this as your PRIMARY search tool. Examples: 'I like helping people feel better', 'creative problem solving with technology', 'working outdoors with animals'.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Search keywords (e.g., 'software', 'nurse', 'writing', 'animals')"
+                    "description": "Natural language description of interests, skills, or career goals (e.g., 'I enjoy creative problem solving and working with my hands', 'helping people through difficult times')"
+                },
+                "top_n": {
+                    "type": "integer",
+                    "description": "Number of results to return (default 10, max 20)"
+                }
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "read_career_profile",
+        "description": "Read the FULL detailed profile for an occupation. Returns comprehensive information including: BLS description, what they do, how to become one, work environment, job outlook, O*NET skills with importance ratings, knowledge areas, Holland Code personality fit, and similar occupations. Use this after search to deeply understand a career before recommending it.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The occupation code from search results"
+                }
+            },
+            "required": ["code"]
+        }
+    },
+{% endif %}
+    {
+        "name": "search_occupations",
+        "description": "Keyword search for occupations by specific job title or career name. Use semantic_search_careers for natural language queries instead. This tool is best for looking up a SPECIFIC known occupation by name (e.g., 'registered nurse', 'software developer').",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Specific occupation title or keyword (e.g., 'software developer', 'nurse', 'accountant')"
                 }
             },
             "required": ["query"]
